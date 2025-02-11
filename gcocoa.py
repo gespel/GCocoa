@@ -70,22 +70,27 @@ class Processor:
         return self.d[self.name]
 
 class Service:
-    def __init__(self, receivers, processors):
+    def __init__(self, name, sub_name, receivers, processors):
+        self.name = name
+        self.sub_name = sub_name
         self.receivers = receivers
         self.processors = processors
         self.d = {
-            "pipelines": {
-                "default_pipeline": {
+            f"{self.name}": {
+                f"{self.sub_name}": {
                     "receivers": self.receivers,
                     "processors": self.processors
                 }
             }
         }
     
-    def get_body(self):
-        return self.d["pipelines"]
+    def get_name(self):
+        return self.name
 
-def assemble(receivers, processors, services):
+    def get_body(self):
+        return self.d[self.name]
+
+def assemble_ops_agent_config(receivers, processors, services):
     out = {
         "logging": {
             "receivers": {},
@@ -99,13 +104,14 @@ def assemble(receivers, processors, services):
     for processor in processors:
         out["logging"]["processors"][processor.get_name()] = processor.get_body()
 
-    out["logging"]["service"]["pipelines"] = services[0].get_body()
+    for service in services:
+        out["logging"]["service"][service.get_name()] = service.get_body()
 
     return yaml.dump(out)
 
 
 r = Receiver("TestApp", "files", ["/var/log/testapp.log"])
 p = Processor("modify_severity", "modify_fields", "severity", "jsonPayload.level", {"info": "INFO", "warning": "WARN"})
-s = Service(["TestApp"], ["modify_severity"])
+s = Service("pipelines", "default_pipeline", ["TestApp"], ["modify_severity"])
 
-print(assemble([r], [p], [s]))
+print(assemble_ops_agent_config([r], [p], [s]))
